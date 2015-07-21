@@ -158,6 +158,9 @@ func main() {
 		var message Message
 		message.ParseWireProtocol(wireMessage, []byte(connInfo.Key))
 
+		//c, err := json.Marshal(message)
+		//fmt.Println(string(c))
+
 		_, ok := message.Content["data"]
 
 		if !ok {
@@ -166,7 +169,9 @@ func main() {
 
 		mimeBundle := (message.Content["data"]).(map[string]interface{})
 
-		fmt.Println(mimeBundle)
+		// There and back again
+		b, err := json.Marshal(mimeBundle)
+		fmt.Println(string(b))
 
 	}
 

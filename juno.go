@@ -33,6 +33,12 @@ type Message struct {
 	Content      map[string]interface{} `json:"content"`
 }
 
+// MimeBundle is a collection of mimetypes -> data
+// Example:
+//     'text/html' -> '<h1>Hey!</h1>'
+//     'image/png' -> 'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+type MimeBundle map[string]string
+
 // ConnectionInfo represents the runtime connection data used by Jupyter kernels
 type ConnectionInfo struct {
 	IOPubPort       int    `json:"iopub_port"`
@@ -84,6 +90,7 @@ func (m *Message) ParseWireProtocol(wireMessage [][]byte, key []byte) (err error
 
 	// If the message was signed
 	if len(key) != 0 {
+		// TODO: Programmatic selection of scheme
 		mac := hmac.New(sha256.New, key)
 		for _, msgpart := range wireMessage[i+2 : i+6] {
 			mac.Write(msgpart)
@@ -139,8 +146,7 @@ func main() {
 	iopubSocket.Connect(connectionString)
 	iopubSocket.SetSubscribe("")
 
-	fmt.Println("Connected to")
-	fmt.Println(connInfo)
+	fmt.Printf("Connected to %v\n", connectionString)
 
 	for {
 		wireMessage, err := iopubSocket.RecvMessageBytes(0)
@@ -152,7 +158,15 @@ func main() {
 		var message Message
 		message.ParseWireProtocol(wireMessage, []byte(connInfo.Key))
 
-		fmt.Println(message.Content)
+		_, ok := message.Content["data"]
+
+		if !ok {
+			continue
+		}
+
+		mimeBundle := (message.Content["data"]).(map[string]interface{})
+
+		fmt.Println(mimeBundle)
 
 	}
 

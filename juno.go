@@ -2,7 +2,11 @@
 package main
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -21,7 +25,7 @@ type MessageHeader struct {
 	Version     string `json:"version"`
 }
 
-// Message is a generic Jupyter message
+// Message is a generic Jupyter message (not a wire message)
 type Message struct {
 	Header       MessageHeader          `json:"header"`
 	ParentHeader MessageHeader          `json:"parent_header"`
@@ -40,6 +44,64 @@ type ConnectionInfo struct {
 	ShellPort       int    `json:"shell_port"`
 	ControlPort     int    `json:"control_port"`
 	Key             string `json:"key"`
+}
+
+// DELIMITER denotes the Jupyter multipart message
+var DELIMITER = "<IDS|MSG>"
+
+// ParseWireProtocol fills a Message with all the juicy Jupyter bits
+func (m *Message) ParseWireProtocol(wireMessage [][]byte, key []byte) (err error) {
+	var i int
+	var el []byte
+
+	// Wire protocol
+	/**
+		[
+	  		b'u-u-i-d',         # zmq identity(ies)
+	  		b'<IDS|MSG>',       # delimiter
+	  		b'baddad42',        # HMAC signature
+			b'{header}',        # serialized header dict
+			b'{parent_header}', # serialized parent header dict
+			b'{metadata}',      # serialized metadata dict
+			b'{content}',       # serialized content dict
+			b'blob',            # extra raw data buffer(s)
+	  		...
+		]
+	*/
+	// Determine where the delimiter is
+	for i, el = range wireMessage {
+		if string(el) == DELIMITER {
+			break // Found our delimiter
+		}
+	}
+
+	if string(wireMessage[i]) != DELIMITER {
+		return errors.New("Couldn't find delimeter")
+	}
+
+	// Extract the zmq identiti(es)
+	//identities := wireMessage[:delimiterLocation]
+
+	// If the message was signed
+	if len(key) != 0 {
+		fmt.Println("It's a key")
+		mac := hmac.New(sha256.New, key)
+		for _, msgpart := range wireMessage[i+2 : i+6] {
+			mac.Write(msgpart)
+		}
+		signature := make([]byte, hex.DecodedLen(len(wireMessage[i+1])))
+		hex.Decode(signature, wireMessage[i+1])
+		if !hmac.Equal(mac.Sum(nil), signature) {
+			return errors.New("Invalid signature")
+		}
+	}
+
+	json.Unmarshal(wireMessage[i+2], &m.Header)
+	json.Unmarshal(wireMessage[i+3], &m.ParentHeader)
+	json.Unmarshal(wireMessage[i+4], &m.Metadata)
+	json.Unmarshal(wireMessage[i+5], &m.Content)
+
+	return nil
 }
 
 func main() {
@@ -82,12 +144,17 @@ func main() {
 	fmt.Println(connInfo)
 
 	for {
-		msg, err := iopubSocket.Recv(0)
+		wireMessage, err := iopubSocket.RecvMessageBytes(0)
 		if err != nil {
 			fmt.Printf("Error on receive: %v\n", err)
+			continue
 		}
 
-		fmt.Println(msg)
+		var message Message
+		message.ParseWireProtocol(wireMessage, []byte(connInfo.Key))
+
+		fmt.Println(message.Content)
+
 	}
 
 }

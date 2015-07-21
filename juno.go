@@ -128,12 +128,32 @@ func OpenConnectionFile(filename string) (ConnectionInfo, error) {
 	return connInfo, nil
 }
 
+// JupyterSocket is a zmq.Socket with extra sauce
+type JupyterSocket struct {
+	ZMQSocket *zmq.Socket
+	ConnInfo  ConnectionInfo
+}
+
+// ReadMessage reads a Jupyter Protocol Message
+func (s *JupyterSocket) ReadMessage() (Message, error) {
+	var message Message
+	wireMessage, err := s.ZMQSocket.RecvMessageBytes(0)
+	if err != nil {
+		return message, fmt.Errorf("Error on receive: %v", err)
+	}
+
+	message.ParseWireProtocol(wireMessage, []byte(s.ConnInfo.Key))
+
+	return message, nil
+}
+
 func main() {
 	flag.Parse()
 	if flag.NArg() < 1 {
 		log.Fatalln("Need a connection file.")
 	}
 
+	// Expects a runtime kernel-*.json
 	connInfo, err := OpenConnectionFile(flag.Arg(0))
 
 	if err != nil {
@@ -141,33 +161,36 @@ func main() {
 		os.Exit(1)
 	}
 
-	iopubSocket, err := zmq.NewSocket(zmq.SUB)
+	rawIOPubSocket, err := zmq.NewSocket(zmq.SUB)
 	if err != nil {
 		fmt.Errorf("Couldn't start the iopub socket: %v", err)
 		os.Exit(2)
 	}
 
-	defer iopubSocket.Close()
+	defer rawIOPubSocket.Close()
 
 	connectionString := fmt.Sprintf("%s://%s:%d",
 		connInfo.Transport,
 		connInfo.IP,
 		connInfo.IOPubPort)
 
-	iopubSocket.Connect(connectionString)
-	iopubSocket.SetSubscribe("")
+	rawIOPubSocket.Connect(connectionString)
+	rawIOPubSocket.SetSubscribe("")
 
 	fmt.Printf("Connected to %v\n", connectionString)
 
+	iopub := JupyterSocket{
+		ZMQSocket: rawIOPubSocket,
+		ConnInfo:  connInfo,
+	}
+
 	for {
-		wireMessage, err := iopubSocket.RecvMessageBytes(0)
+		message, err := iopub.ReadMessage()
+
 		if err != nil {
-			fmt.Printf("Error on receive: %v\n", err)
+			fmt.Errorf("%v\n", err)
 			continue
 		}
-
-		var message Message
-		message.ParseWireProtocol(wireMessage, []byte(connInfo.Key))
 
 		//c, err := json.Marshal(message)
 		//fmt.Println(string(c))

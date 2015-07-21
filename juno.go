@@ -147,6 +147,34 @@ func (s *JupyterSocket) ReadMessage() (Message, error) {
 	return message, nil
 }
 
+// Close shutdown zmq sockets
+func (s *JupyterSocket) Close() {
+	s.ZMQSocket.Close()
+}
+
+// NewIOPubSocket creates a new iopubsocket (SUB) with the connInfo given
+func NewIOPubSocket(connInfo ConnectionInfo, subscribe string) (*JupyterSocket, error) {
+	rawIOPubSocket, err := zmq.NewSocket(zmq.SUB)
+	if err != nil {
+		return nil, err
+	}
+
+	connectionString := fmt.Sprintf("%s://%s:%d",
+		connInfo.Transport,
+		connInfo.IP,
+		connInfo.IOPubPort)
+
+	rawIOPubSocket.Connect(connectionString)
+	rawIOPubSocket.SetSubscribe("")
+
+	iopub := &JupyterSocket{
+		ZMQSocket: rawIOPubSocket,
+		ConnInfo:  connInfo,
+	}
+
+	return iopub, nil
+}
+
 func main() {
 	flag.Parse()
 	if flag.NArg() < 1 {
@@ -161,28 +189,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	rawIOPubSocket, err := zmq.NewSocket(zmq.SUB)
+	iopub, err := NewIOPubSocket(connInfo, "")
+
 	if err != nil {
 		fmt.Errorf("Couldn't start the iopub socket: %v", err)
-		os.Exit(2)
 	}
 
-	defer rawIOPubSocket.Close()
-
-	connectionString := fmt.Sprintf("%s://%s:%d",
-		connInfo.Transport,
-		connInfo.IP,
-		connInfo.IOPubPort)
-
-	rawIOPubSocket.Connect(connectionString)
-	rawIOPubSocket.SetSubscribe("")
-
-	fmt.Printf("Connected to %v\n", connectionString)
-
-	iopub := JupyterSocket{
-		ZMQSocket: rawIOPubSocket,
-		ConnInfo:  connInfo,
-	}
+	defer iopub.Close()
 
 	for {
 		message, err := iopub.ReadMessage()

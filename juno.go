@@ -30,7 +30,7 @@ type Message struct {
 	Header       MessageHeader          `json:"header"`
 	ParentHeader MessageHeader          `json:"parent_header"`
 	Metadata     map[string]interface{} `json:"metadata"`
-	Content      interface{}            `json:"content"`
+	Content      map[string]interface{} `json:"content"`
 }
 
 // ConnectionInfo represents the runtime connection data used by Jupyter kernels
@@ -84,7 +84,6 @@ func (m *Message) ParseWireProtocol(wireMessage [][]byte, key []byte) (err error
 
 	// If the message was signed
 	if len(key) != 0 {
-		fmt.Println("It's a key")
 		mac := hmac.New(sha256.New, key)
 		for _, msgpart := range wireMessage[i+2 : i+6] {
 			mac.Write(msgpart)

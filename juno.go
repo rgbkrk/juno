@@ -110,30 +110,41 @@ func (m *Message) ParseWireProtocol(wireMessage [][]byte, key []byte) (err error
 	return nil
 }
 
-func main() {
-	flag.Parse()
-	if flag.NArg() < 1 {
-		log.Fatalln("Need a command line argument for the connection file.")
-	}
-
-	connFile, err := os.Open(flag.Arg(0))
+// OpenConnectionFile is a helper method that opens a connection file and reads
+// it into a ConnectionInfo struct
+func OpenConnectionFile(filename string) (ConnectionInfo, error) {
+	var connInfo ConnectionInfo
+	connFile, err := os.Open(filename)
 	if err != nil {
-		fmt.Errorf("Couldn't open connection file: %v", err)
-		os.Exit(1)
+		return connInfo, fmt.Errorf("Couldn't open connection file: %v", err)
 	}
 
 	jsonParser := json.NewDecoder(connFile)
 
-	var connInfo ConnectionInfo
-
 	if err = jsonParser.Decode(&connInfo); err != nil {
-		fmt.Errorf("Couldn't parse connection file: %v", err)
-		os.Exit(2)
+		return connInfo, fmt.Errorf("Couldn't parse connection file: %v", err)
+	}
+
+	return connInfo, nil
+}
+
+func main() {
+	flag.Parse()
+	if flag.NArg() < 1 {
+		log.Fatalln("Need a connection file.")
+	}
+
+	connInfo, err := OpenConnectionFile(flag.Arg(0))
+
+	if err != nil {
+		fmt.Errorf("%v\n", err)
+		os.Exit(1)
 	}
 
 	iopubSocket, err := zmq.NewSocket(zmq.SUB)
 	if err != nil {
 		fmt.Errorf("Couldn't start the iopub socket: %v", err)
+		os.Exit(2)
 	}
 
 	defer iopubSocket.Close()

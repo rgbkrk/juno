@@ -31,7 +31,7 @@ type Message struct {
 	Content      map[string]interface{} `json:"content"`
 }
 
-// MimeBundle is a collection of mimetypes -> data
+// MimeBundle is a collection of `mimetypes -> data`
 // Example:
 //     'text/html' -> '<h1>Hey!</h1>'
 //     'image/png' -> 'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
@@ -126,7 +126,7 @@ func OpenConnectionFile(filename string) (ConnectionInfo, error) {
 	return connInfo, nil
 }
 
-// JupyterSocket is a zmq.Socket with extra sauce
+// JupyterSocket is a zmq.Socket coupled with connection information
 type JupyterSocket struct {
 	ZMQSocket *zmq.Socket
 	ConnInfo  ConnectionInfo
@@ -145,12 +145,12 @@ func (s *JupyterSocket) ReadMessage() (Message, error) {
 	return message, nil
 }
 
-// Close shutdown zmq sockets
+// Close shutdowns zmq sockets
 func (s *JupyterSocket) Close() {
 	s.ZMQSocket.Close()
 }
 
-// NewIOPubSocket creates a new iopubsocket (SUB) with the connInfo given
+// NewIOPubSocket creates a new IOPub socket (on SUB) with the connInfo given
 func NewIOPubSocket(connInfo ConnectionInfo, subscribe string) (*JupyterSocket, error) {
 	rawIOPubSocket, err := zmq.NewSocket(zmq.SUB)
 	if err != nil {

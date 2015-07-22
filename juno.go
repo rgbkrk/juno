@@ -1,4 +1,5 @@
 // Package juno implements light amounts of the Jupyter Messaging Protocol
+// http://jupyter-client.readthedocs.org/en/latest/messaging.html
 package juno
 
 import (
@@ -14,7 +15,7 @@ import (
 )
 
 // MessageHeader is a Jupyter message header
-// See: http://jupyter-client.readthedocs.org/en/latest/messaging.html
+// http://jupyter-client.readthedocs.org/en/latest/messaging.html
 type MessageHeader struct {
 	MessageID   string `json:"msg_id"`
 	Username    string `json:"username"`
@@ -24,6 +25,7 @@ type MessageHeader struct {
 }
 
 // Message is a generic Jupyter message (not a wire message)
+// http://jupyter-client.readthedocs.org/en/latest/messaging.html#general-message-format
 type Message struct {
 	Header       MessageHeader          `json:"header"`
 	ParentHeader MessageHeader          `json:"parent_header"`
@@ -59,6 +61,7 @@ func (m *Message) ParseWireProtocol(wireMessage [][]byte, key []byte) (err error
 	var el []byte
 
 	// Wire protocol
+	// http://jupyter-client.readthedocs.org/en/latest/messaging.html#the-wire-protocol
 	/**
 		[
 	  		b'u-u-i-d',         # zmq identity(ies)

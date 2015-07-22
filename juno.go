@@ -83,7 +83,7 @@ func (m *Message) ParseWireProtocol(wireMessage [][]byte, key []byte) (err error
 		}
 	}
 
-	if string(wireMessage[i]) != DELIMITER {
+	if i >= len(wireMessage) {
 		return errors.New("Couldn't find delimeter")
 	}
 

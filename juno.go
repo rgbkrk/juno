@@ -1,4 +1,5 @@
-// Package juno implements light amounts of the Jupyter Messaging Protocol
+// Package juno implements the messaging spec of the Jupyter Messaging Protocol,
+// just for you.
 // http://jupyter-client.readthedocs.org/en/latest/messaging.html
 package juno
 

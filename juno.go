@@ -51,7 +51,7 @@ type ConnectionInfo struct {
 }
 
 // DELIMITER denotes the Jupyter multipart message
-var DELIMITER = "<IDS|MSG>"
+const DELIMITER = "<IDS|MSG>"
 
 // ParseWireProtocol fills a Message with all the juicy Jupyter bits
 func (m *Message) ParseWireProtocol(wireMessage [][]byte, key []byte) (err error) {

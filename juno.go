@@ -1,5 +1,5 @@
-// Tinkering with go, zmq, and Jupyter
-package main
+// Package juno implements light amounts of the Jupyter Messaging Protocol
+package juno
 
 import (
 	"crypto/hmac"
@@ -205,20 +205,10 @@ func main() {
 			continue
 		}
 
-		//c, err := json.Marshal(message)
-		//fmt.Println(string(c))
-
-		_, ok := message.Content["data"]
-
-		if !ok {
-			continue
+		c, err := json.Marshal(message)
+		if err != nil {
+			fmt.Println(string(c))
 		}
-
-		mimeBundle := (message.Content["data"]).(map[string]interface{})
-
-		// There and back again
-		b, err := json.Marshal(mimeBundle)
-		fmt.Println(string(b))
 
 	}
 

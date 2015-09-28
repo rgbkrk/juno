@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"os"
 
-	zmq "github.com/pebbe/zmq4"
+	zmq "github.com/zeromq/goczmq"
 )
 
 // MessageHeader is a Jupyter message header
@@ -132,14 +132,14 @@ func OpenConnectionFile(filename string) (ConnectionInfo, error) {
 
 // JupyterSocket is a zmq.Socket coupled with connection information
 type JupyterSocket struct {
-	ZMQSocket *zmq.Socket
+	ZMQSocket *zmq.Sock
 	ConnInfo  ConnectionInfo
 }
 
 // ReadMessage reads a Jupyter Protocol Message
 func (s *JupyterSocket) ReadMessage() (Message, error) {
 	var message Message
-	wireMessage, err := s.ZMQSocket.RecvMessageBytes(0)
+	wireMessage, err := s.ZMQSocket.RecvMessage()
 	if err != nil {
 		return message, fmt.Errorf("Error on receive: %v", err)
 	}
@@ -149,25 +149,23 @@ func (s *JupyterSocket) ReadMessage() (Message, error) {
 	return message, nil
 }
 
-// Close shutdowns zmq sockets
-func (s *JupyterSocket) Close() {
-	s.ZMQSocket.Close()
+// Destroy obliterates zmq sockets
+func (s *JupyterSocket) Destroy() {
+	s.ZMQSocket.Destroy()
 }
 
 // NewIOPubSocket creates a new IOPub socket (on SUB) with the connInfo given
+// subscribe is a comma delimited list of topics to subscribe to
 func NewIOPubSocket(connInfo ConnectionInfo, subscribe string) (*JupyterSocket, error) {
-	rawIOPubSocket, err := zmq.NewSocket(zmq.SUB)
-	if err != nil {
-		return nil, err
-	}
-
 	connectionString := fmt.Sprintf("%s://%s:%d",
 		connInfo.Transport,
 		connInfo.IP,
 		connInfo.IOPubPort)
 
-	rawIOPubSocket.Connect(connectionString)
-	rawIOPubSocket.SetSubscribe("")
+	rawIOPubSocket, err := zmq.NewSub(connectionString, subscribe)
+	if err != nil {
+		return nil, err
+	}
 
 	iopub := &JupyterSocket{
 		ZMQSocket: rawIOPubSocket,

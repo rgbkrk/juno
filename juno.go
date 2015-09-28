@@ -10,9 +10,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"hash"
 	"os"
-
-	zmq "github.com/pebbe/zmq4"
 )
 
 // MessageHeader is a Jupyter message header
@@ -57,7 +56,7 @@ type ConnectionInfo struct {
 const DELIMITER = "<IDS|MSG>"
 
 // ParseWireProtocol fills a Message with all the juicy Jupyter bits
-func (m *Message) ParseWireProtocol(wireMessage [][]byte, key []byte) (err error) {
+func (m *Message) ParseWireProtocol(wireMessage [][]byte, connInfo ConnectionInfo) (err error) {
 	var i int
 	var el []byte
 
@@ -91,9 +90,16 @@ func (m *Message) ParseWireProtocol(wireMessage [][]byte, key []byte) (err error
 	//identities := wireMessage[:delimiterLocation]
 
 	// If the message was signed
-	if len(key) != 0 {
-		// TODO: Programmatic selection of scheme
-		mac := hmac.New(sha256.New, key)
+	if len(connInfo.Key) != 0 {
+		var hasher func() hash.Hash
+
+		if connInfo.SignatureScheme == "hmac-sha256" {
+			hasher = sha256.New
+		} else {
+			return errors.New("juno only supports hmac-sha256 for signature scheme currently")
+		}
+
+		mac := hmac.New(hasher, []byte(connInfo.Key))
 		for _, msgpart := range wireMessage[i+2 : i+6] {
 			mac.Write(msgpart)
 		}
@@ -112,14 +118,16 @@ func (m *Message) ParseWireProtocol(wireMessage [][]byte, key []byte) (err error
 	return nil
 }
 
-// OpenConnectionFile is a helper method that opens a connection file and reads
-// it into a ConnectionInfo struct
-func OpenConnectionFile(filename string) (ConnectionInfo, error) {
+// NewConnectionInfo reads in a connection file and creates a ConnectionInfo
+// struct
+func NewConnectionInfo(filename string) (ConnectionInfo, error) {
 	var connInfo ConnectionInfo
 	connFile, err := os.Open(filename)
+
 	if err != nil {
 		return connInfo, fmt.Errorf("Couldn't open connection file: %v", err)
 	}
+	defer connFile.Close()
 
 	jsonParser := json.NewDecoder(connFile)
 
@@ -130,49 +138,17 @@ func OpenConnectionFile(filename string) (ConnectionInfo, error) {
 	return connInfo, nil
 }
 
-// JupyterSocket is a zmq.Socket coupled with connection information
-type JupyterSocket struct {
-	ZMQSocket *zmq.Socket
-	ConnInfo  ConnectionInfo
-}
-
-// ReadMessage reads a Jupyter Protocol Message
-func (s *JupyterSocket) ReadMessage() (Message, error) {
-	var message Message
-	wireMessage, err := s.ZMQSocket.RecvMessageBytes(0)
-	if err != nil {
-		return message, fmt.Errorf("Error on receive: %v", err)
-	}
-
-	message.ParseWireProtocol(wireMessage, []byte(s.ConnInfo.Key))
-
-	return message, nil
-}
-
-// Close shutdowns zmq sockets
-func (s *JupyterSocket) Close() {
-	s.ZMQSocket.Close()
-}
-
-// NewIOPubSocket creates a new IOPub socket (on SUB) with the connInfo given
-func NewIOPubSocket(connInfo ConnectionInfo, subscribe string) (*JupyterSocket, error) {
-	rawIOPubSocket, err := zmq.NewSocket(zmq.SUB)
-	if err != nil {
-		return nil, err
-	}
-
+// ConnectionString forms the string for zmq libraries to connect
+func (connInfo *ConnectionInfo) ConnectionString(port int) string {
 	connectionString := fmt.Sprintf("%s://%s:%d",
 		connInfo.Transport,
 		connInfo.IP,
-		connInfo.IOPubPort)
+		port)
+	return connectionString
+}
 
-	rawIOPubSocket.Connect(connectionString)
-	rawIOPubSocket.SetSubscribe("")
-
-	iopub := &JupyterSocket{
-		ZMQSocket: rawIOPubSocket,
-		ConnInfo:  connInfo,
-	}
-
-	return iopub, nil
+// IOPubConnectionString forms the connection string for the IOPub socket
+// This is simply a wrapper around ConnectionString with the IOPub port
+func (connInfo *ConnectionInfo) IOPubConnectionString() string {
+	return connInfo.ConnectionString(connInfo.IOPubPort)
 }

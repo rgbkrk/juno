@@ -112,9 +112,9 @@ func (m *Message) ParseWireProtocol(wireMessage [][]byte, key []byte) (err error
 	return nil
 }
 
-// OpenConnectionFile is a helper method that opens a connection file and reads
-// it into a ConnectionInfo struct
-func OpenConnectionFile(filename string) (ConnectionInfo, error) {
+// NewConnectionInfo reads in a connection file and creates a ConnectionInfo
+// struct
+func NewConnectionInfo(filename string) (ConnectionInfo, error) {
 	var connInfo ConnectionInfo
 	connFile, err := os.Open(filename)
 
@@ -130,6 +130,11 @@ func OpenConnectionFile(filename string) (ConnectionInfo, error) {
 	}
 
 	return connInfo, nil
+}
+
+// OpenConnectionFile wraps NewConnectionInfo for backwards compatiblity
+func OpenConnectionFile(filename string) (ConnectionInfo, error) {
+	return NewConnectionInfo(filename)
 }
 
 // JupyterSocket is a zmq.Socket coupled with connection information
@@ -151,6 +156,14 @@ func (s *JupyterSocket) ReadMessage() (Message, error) {
 	return message, nil
 }
 
+// NewMessage creates a new message from a wire message using the key from this
+// socket's connection info
+func (s *JupyterSocket) NewMessage(wireMessage [][]byte) (Message, error) {
+	var message Message
+	message.ParseWireProtocol(wireMessage, []byte(s.ConnInfo.Key))
+	return message, nil
+}
+
 // Destroy obliterates zmq sockets
 func (s *JupyterSocket) Destroy() {
 	s.ZMQSocket.Destroy()
@@ -159,10 +172,7 @@ func (s *JupyterSocket) Destroy() {
 // NewIOPubSocket creates a new IOPub socket (on SUB) with the connInfo given
 // subscribe is a comma delimited list of topics to subscribe to
 func NewIOPubSocket(connInfo ConnectionInfo, subscribe string) (*JupyterSocket, error) {
-	connectionString := fmt.Sprintf("%s://%s:%d",
-		connInfo.Transport,
-		connInfo.IP,
-		connInfo.IOPubPort)
+	connectionString := connInfo.IOPubConnection()
 
 	rawIOPubSocket, err := zmq.NewSub(connectionString, subscribe)
 	if err != nil {
@@ -175,4 +185,18 @@ func NewIOPubSocket(connInfo ConnectionInfo, subscribe string) (*JupyterSocket, 
 	}
 
 	return iopub, nil
+}
+
+// ConnectionString forms the string for zmq libraries to connect
+func (connInfo *ConnectionInfo) ConnectionString(port int) string {
+	connectionString := fmt.Sprintf("%s://%s:%d",
+		connInfo.Transport,
+		connInfo.IP,
+		port)
+	return connectionString
+}
+
+// IOPubConnection forms the connection string for the IOPub socket
+func (connInfo *ConnectionInfo) IOPubConnection() string {
+	return connInfo.ConnectionString(connInfo.IOPubPort)
 }

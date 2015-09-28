@@ -200,3 +200,10 @@ func (connInfo *ConnectionInfo) ConnectionString(port int) string {
 func (connInfo *ConnectionInfo) IOPubConnection() string {
 	return connInfo.ConnectionString(connInfo.IOPubPort)
 }
+
+// NewMessage creates a new message based on
+func (connInfo *ConnectionInfo) NewMessage(wireMessage [][]byte) (Message, error) {
+	var message Message
+	err := message.ParseWireProtocol(wireMessage, []byte(connInfo.Key))
+	return message, err
+}

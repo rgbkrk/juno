@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"hash"
 	"os"
 
 	zmq "github.com/zeromq/goczmq"
@@ -57,7 +58,7 @@ type ConnectionInfo struct {
 const DELIMITER = "<IDS|MSG>"
 
 // ParseWireProtocol fills a Message with all the juicy Jupyter bits
-func (m *Message) ParseWireProtocol(wireMessage [][]byte, key []byte) (err error) {
+func (m *Message) ParseWireProtocol(wireMessage [][]byte, connInfo ConnectionInfo) (err error) {
 	var i int
 	var el []byte
 
@@ -91,9 +92,16 @@ func (m *Message) ParseWireProtocol(wireMessage [][]byte, key []byte) (err error
 	//identities := wireMessage[:delimiterLocation]
 
 	// If the message was signed
-	if len(key) != 0 {
-		// TODO: Programmatic selection of scheme
-		mac := hmac.New(sha256.New, key)
+	if len(connInfo.Key) != 0 {
+		var hasher func() hash.Hash
+
+		if connInfo.SignatureScheme == "hmac-sha256" {
+			hasher = sha256.New
+		} else {
+			return errors.New("juno only supports hmac-sha256 for signature scheme currently")
+		}
+
+		mac := hmac.New(hasher, []byte(connInfo.Key))
 		for _, msgpart := range wireMessage[i+2 : i+6] {
 			mac.Write(msgpart)
 		}
@@ -151,8 +159,10 @@ func (s *JupyterSocket) ReadMessage() (Message, error) {
 		return message, fmt.Errorf("Error on receive: %v", err)
 	}
 
-	message.ParseWireProtocol(wireMessage, []byte(s.ConnInfo.Key))
-
+	message, err = s.NewMessage(wireMessage)
+	if err != nil {
+		return message, fmt.Errorf("Error on parsing wire message: %v", err)
+	}
 	return message, nil
 }
 
@@ -160,7 +170,7 @@ func (s *JupyterSocket) ReadMessage() (Message, error) {
 // socket's connection info
 func (s *JupyterSocket) NewMessage(wireMessage [][]byte) (Message, error) {
 	var message Message
-	message.ParseWireProtocol(wireMessage, []byte(s.ConnInfo.Key))
+	message.ParseWireProtocol(wireMessage, s.ConnInfo)
 	return message, nil
 }
 
@@ -172,7 +182,7 @@ func (s *JupyterSocket) Destroy() {
 // NewIOPubSocket creates a new IOPub socket (on SUB) with the connInfo given
 // subscribe is a comma delimited list of topics to subscribe to
 func NewIOPubSocket(connInfo ConnectionInfo, subscribe string) (*JupyterSocket, error) {
-	connectionString := connInfo.IOPubConnection()
+	connectionString := connInfo.IOPubConnectionString()
 
 	rawIOPubSocket, err := zmq.NewSub(connectionString, subscribe)
 	if err != nil {
@@ -196,14 +206,14 @@ func (connInfo *ConnectionInfo) ConnectionString(port int) string {
 	return connectionString
 }
 
-// IOPubConnection forms the connection string for the IOPub socket
-func (connInfo *ConnectionInfo) IOPubConnection() string {
+// IOPubConnectionString forms the connection string for the IOPub socket
+func (connInfo *ConnectionInfo) IOPubConnectionString() string {
 	return connInfo.ConnectionString(connInfo.IOPubPort)
 }
 
-// NewMessage creates a new message based on
+// NewMessage creates a new message based only on the connection info
 func (connInfo *ConnectionInfo) NewMessage(wireMessage [][]byte) (Message, error) {
 	var message Message
-	err := message.ParseWireProtocol(wireMessage, []byte(connInfo.Key))
+	err := message.ParseWireProtocol(wireMessage, *connInfo)
 	return message, err
 }

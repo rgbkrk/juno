@@ -1,0 +1,40 @@
+<html>
+<head>
+  <title>IOPub -> SSE</title>
+  <script src="https://wzrd.in/standalone/jupyter-js-output-area@0.0.5"></script>
+  <script src="sidecar.js"></script>
+</head>
+<body>
+  <h1>IOPub -> SSE</h1>
+  <div id="content">
+  </div>
+  <script>
+  // Browserify renames jupyter-js-output-area as jupyterJsOutputArea
+  // Picking joust as a shorthand for
+  // Jupyter OUtput STate
+
+  var source = new EventSource('http://127.0.0.1:3000');
+  var sidecar = new SideCar(document.querySelector("#content"), document)
+
+  source.addEventListener('message', function(e) {
+    if(! e.data) {
+      return
+    }
+    var message = JSON.parse(e.data);
+    sidecar.consume(message);
+
+  }, false);
+
+  source.addEventListener('open', function(e) {
+    console.log("Opened connection");
+  }, false);
+
+  source.addEventListener('error', function(e) {
+    if (e.readyState == EventSource.CLOSED) {
+      console.log("Connection closed");
+    }
+  }, false);
+
+  </script>
+</body>
+</html>

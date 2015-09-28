@@ -117,9 +117,11 @@ func (m *Message) ParseWireProtocol(wireMessage [][]byte, key []byte) (err error
 func OpenConnectionFile(filename string) (ConnectionInfo, error) {
 	var connInfo ConnectionInfo
 	connFile, err := os.Open(filename)
+
 	if err != nil {
 		return connInfo, fmt.Errorf("Couldn't open connection file: %v", err)
 	}
+	defer connFile.Close()
 
 	jsonParser := json.NewDecoder(connFile)
 

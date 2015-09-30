@@ -1,0 +1,3 @@
+.git
+Makefile
+server.go # Only want the binary and ./static

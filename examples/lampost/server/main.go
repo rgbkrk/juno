@@ -21,7 +21,7 @@ func main() {
 		bMessage, err := json.Marshal(message)
 		b.Notifier <- bMessage
 	})
-	http.HandleFunc("/events", b)
+	http.Handle("/events", b)
 
-	http.ListenAndServe(":8080")
+	http.ListenAndServe(":8080", nil)
 }

@@ -40,7 +40,6 @@ func main() {
 
 	defer iopub.Destroy()
 
-	// TODO: sync waitgroup
 	var wg sync.WaitGroup
 	wg.Add(1)
 
@@ -57,29 +56,21 @@ func main() {
 				}
 
 				b, err := json.Marshal(message)
-				fmt.Printf("%s\n", b)
-
 				reader := bytes.NewReader(b)
 
 				resp, err := http.Post(*lampostServer+"/api/ioju", "application/json", reader)
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "Unable to POST to %v with %v", *lampostServer, message)
+					fmt.Fprintf(os.Stderr, "Unable to POST to %v with %v\n", *lampostServer, message)
 					fmt.Fprintln(os.Stderr, err)
 					if resp != nil {
-						fmt.Fprintf(os.Stderr, "[%v] %v", resp.StatusCode, resp.Status)
+						fmt.Fprintf(os.Stderr, "[%v] %v\n", resp.StatusCode, resp.Status)
 					}
 					return
 				}
-				fmt.Printf("[%v] %v", resp.StatusCode, resp.Status)
 
 				if resp.StatusCode != 200 {
-					continue
+					fmt.Printf("[%v] %v\n", resp.StatusCode, resp.Status)
 				}
-
-				var body []byte
-				resp.Body.Read(body)
-
-				fmt.Printf("%v", body)
 
 			}
 		}

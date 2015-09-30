@@ -61,7 +61,7 @@ func main() {
 
 				reader := bytes.NewReader(b)
 
-				resp, err := http.Post(*lampostServer, "application/json", reader)
+				resp, err := http.Post(*lampostServer+"/api/ioju", "application/json", reader)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "Unable to POST to %v with %v", *lampostServer, message)
 					fmt.Fprintln(os.Stderr, err)

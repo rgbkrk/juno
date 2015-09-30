@@ -1,29 +1,27 @@
 package main
 
-import "net/http"
+import (
+	"encoding/json"
+	"net/http"
 
-// Lamp, I love it
-type Lamp struct {
-}
-
-func (lamp *Lamp) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-
-	// Make sure that the writer supports flushing.
-	//
-	flusher, ok := rw.(http.Flusher)
-
-	if !ok {
-		http.Error(rw, "Streaming unsupported!", http.StatusInternalServerError)
-		return
-	}
-
-	rw.Header().Set("Content-Type", "text/event-stream")
-	rw.Header().Set("Cache-Control", "no-cache")
-	rw.Header().Set("Connection", "keep-alive")
-	rw.Header().Set("Access-Control-Allow-Origin", "*")
-
-}
+	juno "github.com/rgbkrk/juno"
+	broker "github.com/rgbkrk/juno/examples/iopub-sse/sse-broker"
+)
 
 func main() {
-	http.ListenAndServe("", Lamp)
+	b := broker.NewServer()
+
+	http.HandleFunc("/ioju", func(w http.ResponseWriter, r *http.Request) {
+		decoder := json.NewDecoder(r.Body)
+		var message juno.Message
+		err := decoder.Decode(&message)
+		if err != nil {
+			panic(err)
+		}
+		bMessage, err := json.Marshal(message)
+		b.Notifier <- bMessage
+	})
+	http.HandleFunc("/events", b)
+
+	http.ListenAndServe(":8080")
 }

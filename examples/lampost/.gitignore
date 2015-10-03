@@ -1,3 +1,5 @@
 client/client
 server/server
 server/static/darwin
+server/static/windows
+server/static/linux

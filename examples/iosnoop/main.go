@@ -1,9 +1,9 @@
 package main
 
 // This is a simple example that opens up an IOPub connection to a Jupyter
-// kernel and displays each message.
+// kernel using zeromq/goczmq and displays each message.
 
-// It relies on zeromq/goczmq, but could just as easily use pebbe/zmq4
+// For an alternative example that uses pebbe/zmq4, see ../iosnoop-zmq4/main.go
 
 import (
 	"flag"

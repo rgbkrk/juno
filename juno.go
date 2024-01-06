@@ -35,8 +35,9 @@ type Message struct {
 
 // MimeBundle is a collection of `mimetypes -> data`
 // Example:
-//     'text/html' -> '<h1>Hey!</h1>'
-//     'image/png' -> 'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+//
+//	'text/html' -> '<h1>Hey!</h1>'
+//	'image/png' -> 'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
 type MimeBundle map[string]string
 
 // ConnectionInfo represents the runtime connection data used by Jupyter kernels

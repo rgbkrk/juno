@@ -3,29 +3,51 @@
 Go library for interacting with the Jupyter Messaging Protocol.
 
 ```go
-import "github.com/rgbkrk/juno"
+package main
 
-// Read in the connection information from a runtime
-// For example, this would accept ~/Library/Jupyter/runtime/kernel-123.json
-// and parse the connection information
-connInfo, err := juno.NewConnectionInfo(pathToKernelRuntime)
-// Test the err...
+import (
+	"log"
+	"os"
 
-// Create an iopub socket that provides go channels
-ioConnection := connInfo.IOPubConnectionString()
-// Can use any zmq library, goczmq used here
-iopub := zmq.NewSubChanneler(ioConnection, "")
-defer iopub.Destroy()
+	"github.com/rgbkrk/juno"
+	"github.com/zeromq/goczmq"
+)
 
-// Listen for messages... forever!
-for {
-  select {
-  case wireMessage := <-iopub.RecvChan:
-    // Get a wire message
-    // Then parse it
-    var message juno.Message
-    err := message.ParseWireProtocol(wireMessage, connInfo)
-    // Do something with the message
-  }
+func main() {
+	if len(os.Args) < 2 {
+		log.Fatal("Please provide a path to a kernel runtime")
+	}
+
+	pathToKernelRuntime := os.Args[1]
+
+	connInfo, err := juno.NewConnectionInfo(pathToKernelRuntime)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Create an iopub socket that provides go channels
+	ioConnection := connInfo.IOPubConnectionString()
+	iopub := goczmq.NewSubChanneler(ioConnection, "")
+	defer iopub.Destroy()
+
+	// Listen for messages... forever!
+	for {
+		select {
+		case wireMessage := <-iopub.RecvChan:
+			var message juno.Message
+			err := message.ParseWireProtocol(wireMessage, connInfo)
+			// Do something with the message
+
+			if err != nil {
+				// Handle the error
+				log.Println("Error parsing message: ", err)
+				continue
+			}
+
+			log.Println("Message: ", message)
+
+		}
+	}
 }
 ```

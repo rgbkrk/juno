@@ -1,4 +1,4 @@
-package main
+package lampost-client
 
 // This is a simple example that sends IOPub data to a remote server via POST
 // It relies on zeromq/goczmq, but could just as easily use pebbe/zmq4

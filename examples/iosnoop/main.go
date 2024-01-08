@@ -1,4 +1,4 @@
-package main
+package iosnoop 
 
 // This is a simple example that opens up an IOPub connection to a Jupyter
 // kernel using zeromq/goczmq and displays each message.

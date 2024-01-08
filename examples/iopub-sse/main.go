@@ -1,4 +1,4 @@
-package main
+package iopub-sse
 
 // This is a simple example that sends IOPub data as server sent events
 // over HTTP

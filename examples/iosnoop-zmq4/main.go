@@ -1,4 +1,4 @@
-package main
+package iosnoop_zmq4
 
 // This is a simple example that opens up an IOPub connection to a Jupyter
 // kernel using pebbe/zmq4 and displays each message.

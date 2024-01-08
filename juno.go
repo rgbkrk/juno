@@ -11,7 +11,10 @@ import (
 	"errors"
 	"fmt"
 	"hash"
+	"log"
 	"os"
+
+	"github.com/google/uuid"
 )
 
 // MessageHeader is a Jupyter message header
@@ -84,7 +87,7 @@ func (m *Message) ParseWireProtocol(wireMessage [][]byte, connInfo ConnectionInf
 	}
 
 	if i >= len(wireMessage) {
-		return errors.New("Couldn't find delimeter")
+		return errors.New("couldn't find delimeter")
 	}
 
 	// Extract the zmq identiti(es)
@@ -152,4 +155,58 @@ func (connInfo *ConnectionInfo) ConnectionString(port int) string {
 // This is simply a wrapper around ConnectionString with the IOPub port
 func (connInfo *ConnectionInfo) IOPubConnectionString() string {
 	return connInfo.ConnectionString(connInfo.IOPubPort)
+}
+
+func (connInfo *ConnectionInfo) ControlConnectionString() string {
+	return connInfo.ConnectionString(connInfo.ControlPort)
+}
+
+func (connInfo *ConnectionInfo) ShellConnectionString() string {
+	return connInfo.ConnectionString(connInfo.ShellPort)
+}
+
+func (connInfo *ConnectionInfo) StdinConnectionString() string {
+	return connInfo.ConnectionString(connInfo.StdinPort)
+}
+
+func (connInfo *ConnectionInfo) HBConnectionString() string {
+	return connInfo.ConnectionString(connInfo.HBPort)
+}
+
+// NewMessage creates a new Jupyter message
+func NewMessage(msgType string) Message {
+	return Message{
+		Header: MessageHeader{
+			MessageID:   NewUUID(),
+			Username:    "kernel",
+			Session:     NewUUID(),
+			MessageType: msgType,
+			Version:     "5.0",
+		},
+		ParentHeader: MessageHeader{},
+		Metadata:     make(map[string]interface{}),
+		Content:      make(map[string]interface{}),
+	}
+}
+
+// NewUUID creates a new UUID
+func NewUUID() string {
+	uuid, err := uuid.NewRandom()
+	if err != nil {
+		log.Fatalf("failed to generate UUID: %v", err)
+	}
+	return uuid.String()
+}
+
+// ExecuteRequest sends an execution request to the Jupyter kernel
+func ExecuteRequest(code string) Message {
+	msg := NewMessage("execute_request")
+	msg.Content = map[string]interface{}{
+		"code":             code,
+		"silent":           false,
+		"store_history":    true,
+		"user_expressions": make(map[string]interface{}),
+		"allow_stdin":      true,
+	}
+	return msg
 }

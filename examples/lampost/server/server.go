@@ -1,4 +1,4 @@
-package main
+package lampost-server
 
 import (
 	"encoding/json"
